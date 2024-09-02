@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Multi-Date Selector Calendar</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .calendar {
+        width: 300px;
+        margin: 20px auto;
+        text-align: center;
+      }
+
+      .month {
+        font-weight: bold;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .month select,
+      .month input {
+        border: 1px solid #ccc;
+        padding: 5px;
+        font-size: 1em;
+        cursor: pointer;
+      }
+
+      .weekdays,
+      .days {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+
+      .weekdays span,
+      .days span {
+        width: 40px;
+        line-height: 40px;
+        display: inline-block;
+        text-align: center;
+        cursor: pointer;
+      }
+
+      .selectable {
+        cursor: pointer;
+        border-radius: 50%;
+        transition: background-color 0.3s;
+      }
+
+      .selectable:hover,
+      .weekdays span:hover {
+        background-color: #f0f0f0;
+      }
+
+      .selected {
+        background-color: #e97f53;
+        color: white;
+      }
+
+      .disabled {
+        color: #ccc;
+        cursor: default;
+      }
+
+      .buttons {
+        display: flex;
+        justify-content: center;
+        width: 300px;
+        margin: 20px auto;
+      }
+
+      .code-container {
+        background-color: #2d2d2d;
+        color: #f8f8f2;
+        border-radius: 5px;
+        padding: 10px;
+        margin: 20px auto;
+        width: 320px;
+        position: relative;
+      }
+
+      .code-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        font-family: "Courier New", Courier, monospace;
+        font-size: 1em;
+      }
+
+      .code-header span {
+        color: #f8f8f2;
+      }
+
+      .code-header button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        font-size: 0.8em;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      .code-header button.copied {
+        background-color: #8bc34a;
+      }
+
+      .code-content {
+        background-color: #272822;
+        border-radius: 5px;
+        padding: 10px;
+        font-family: "Courier New", Courier, monospace;
+        white-space: pre-wrap;
+        font-size: 0.9em;
+        color: #f8f8f2;
+        overflow: auto;
+        max-height: 150px;
+      }
+
+      #selected-count {
+        text-align: center;
+        margin-top: 10px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="calendar">
+      <div class="month">
+        <button id="prev-month">&#8249;</button>
+        <select id="month-select"></select>
+        <input
+          type="number"
+          id="year-input"
+          value="2021"
+          min="1900"
+          max="2100"
+        />
+        <button id="next-month">&#8250;</button>
+      </div>
+      <div class="dates">
+        <div class="weekdays">
+          <span data-day="0">S</span><span data-day="1">M</span
+          ><span data-day="2">T</span><span data-day="3">W</span>
+          <span data-day="4">T</span><span data-day="5">F</span
+          ><span data-day="6">S</span>
+        </div>
+        <div class="days" id="days-container">
+          <!-- Days will be populated here by JavaScript -->
+        </div>
+      </div>
+    </div>
+    <div class="buttons">
+      <button id="clear">Clear</button>
+    </div>
+    <div class="code-container">
+      <div class="code-header">
+        <span>Selected dates:</span>
+        <button id="copy-button">Copy</button>
+      </div>
+      <pre class="code-content" id="selected-dates"></pre>
+    </div>
+    <div id="selected-count">Number of dates selected: 0</div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const selectedDates = [];
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+
+        const monthSelect = document.getElementById("month-select");
+        const yearInput = document.getElementById("year-input");
+        const daysContainer = document.getElementById("days-container");
+        const prevMonthButton = document.getElementById("prev-month");
+        const nextMonthButton = document.getElementById("next-month");
+        const copyButton = document.getElementById("copy-button");
+        const selectedDatesDisplay = document.getElementById("selected-dates");
+
+        // Populate month dropdown
+        const monthNames = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+
+        monthNames.forEach((month, index) => {
+          const option = document.createElement("option");
+          option.value = index;
+          option.textContent = month;
+          monthSelect.appendChild(option);
+        });
+
+        function updateCalendar() {
+          monthSelect.value = currentMonth;
+          yearInput.value = currentYear;
+          daysContainer.innerHTML = "";
+          const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+          const lastDate = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+          // Add previous month's dates if necessary
+          for (let i = 0; i < firstDay; i++) {
+            daysContainer.innerHTML += `<span class="disabled"></span>`;
+          }
+
+          // Add current month's dates
+          for (let date = 1; date <= lastDate; date++) {
+            const fullDate = `${currentMonth + 1}/${date}/${currentYear}`;
+            const isSelected = selectedDates.includes(formatDate(fullDate));
+            daysContainer.innerHTML += `<span class="selectable ${
+              isSelected ? "selected" : ""
+            }" data-date="${fullDate}">${date}</span>`;
+          }
+
+          // Add next month's dates if necessary to complete the last row
+          const totalCells = firstDay + lastDate;
+          const extraCells = 7 - (totalCells % 7);
+          if (extraCells < 7) {
+            for (let i = 0; i < extraCells; i++) {
+              daysContainer.innerHTML += `<span class="disabled"></span>`;
+            }
+          }
+
+          // Attach event listeners to selectable dates
+          document.querySelectorAll(".selectable").forEach((el) => {
+            el.addEventListener("click", function () {
+              const fullDate = this.getAttribute("data-date");
+              const formattedDate = formatDate(fullDate);
+
+              if (this.classList.contains("selected")) {
+                this.classList.remove("selected");
+                const index = selectedDates.indexOf(formattedDate);
+                if (index > -1) {
+                  selectedDates.splice(index, 1);
+                }
+              } else {
+                this.classList.add("selected");
+                selectedDates.push(formattedDate);
+              }
+
+              // Sort and update selected dates
+              selectedDates.sort((a, b) => new Date(a) - new Date(b));
+              selectedDatesDisplay.textContent = selectedDates.join(" ");
+              document.getElementById(
+                "selected-count"
+              ).textContent = `Number of dates selected: ${selectedDates.length}`;
+            });
+          });
+        }
+
+        // Function to format date as MM/DD
+        function formatDate(dateString) {
+          const dateParts = dateString.split("/");
+          const month = dateParts[0];
+          const day = dateParts[1];
+          return `${month}/${day}`;
+        }
+
+        // Function to select all dates for a given day of the week
+        function selectAllByWeekday(weekday) {
+          const datesChanged = [];
+          for (
+            let date = 1;
+            date <= new Date(currentYear, currentMonth + 1, 0).getDate();
+            date++
+          ) {
+            const fullDate = `${currentMonth + 1}/${date}/${currentYear}`;
+            const formattedDate = formatDate(fullDate);
+            const day = new Date(currentYear, currentMonth, date).getDay();
+            const index = selectedDates.indexOf(formattedDate);
+
+            if (day === weekday) {
+              datesChanged.push(fullDate);
+              if (index === -1) {
+                selectedDates.push(formattedDate);
+              } else {
+                selectedDates.splice(index, 1);
+              }
+            }
+          }
+
+          // Sort and update selected dates
+          selectedDates.sort((a, b) => new Date(a) - new Date(b));
+          selectedDatesDisplay.textContent = selectedDates.join(" ");
+          document.getElementById(
+            "selected-count"
+          ).textContent = `Number of dates selected: ${selectedDates.length}`;
+
+          // Refresh calendar to reflect changes in color
+          updateCalendar();
+        }
+
+        // Add event listeners to weekday labels
+        document.querySelectorAll(".weekdays span").forEach((el) => {
+          el.addEventListener("click", function () {
+            const weekday = parseInt(this.getAttribute("data-day"));
+            selectAllByWeekday(weekday);
+          });
+        });
+
+        prevMonthButton.addEventListener("click", function () {
+          if (currentMonth === 0) {
+            currentMonth = 11;
+            currentYear--;
+          } else {
+            currentMonth--;
+          }
+          updateCalendar();
+        });
+
+        nextMonthButton.addEventListener("click", function () {
+          if (currentMonth === 11) {
+            currentMonth = 0;
+            currentYear++;
+          } else {
+            currentMonth++;
+          }
+          updateCalendar();
+        });
+
+        monthSelect.addEventListener("change", function () {
+          currentMonth = parseInt(this.value);
+          updateCalendar();
+        });
+
+        yearInput.addEventListener("change", function () {
+          currentYear = parseInt(this.value);
+          updateCalendar();
+        });
+
+        document.getElementById("clear").addEventListener("click", function () {
+          selectedDates.length = 0;
+          updateCalendar();
+          selectedDatesDisplay.textContent = "";
+          document.getElementById("selected-count").textContent =
+            "Number of dates selected: 0";
+        });
+
+        copyButton.addEventListener("click", function () {
+          const selectedText = selectedDates.join(" ");
+          navigator.clipboard
+            .writeText(selectedText)
+            .then(() => {
+              copyButton.textContent = "Copied";
+              copyButton.classList.add("copied");
+              setTimeout(() => {
+                copyButton.textContent = "Copy";
+                copyButton.classList.remove("copied");
+              }, 2000);
+            })
+            .catch((err) => {
+              console.error("Failed to copy: ", err);
+            });
+        });
+
+        // Initialize the calendar
+        updateCalendar();
+      });
+    </script>
+  </body>
+</html>
