@@ -276,8 +276,28 @@
         }
 
         // Function to select all dates for a given day of the week
+        // Function to select all dates for a given day of the week
         function selectAllByWeekday(weekday) {
           const datesChanged = [];
+          let anyUnselected = false;
+
+          // Check if any of the dates for the given weekday are unselected
+          for (
+            let date = 1;
+            date <= new Date(currentYear, currentMonth + 1, 0).getDate();
+            date++
+          ) {
+            const fullDate = `${currentMonth + 1}/${date}/${currentYear}`;
+            const formattedDate = formatDate(fullDate);
+            const day = new Date(currentYear, currentMonth, date).getDay();
+
+            if (day === weekday && !selectedDates.includes(formattedDate)) {
+              anyUnselected = true;
+              break;
+            }
+          }
+
+          // Select or deselect dates for the given weekday based on the check
           for (
             let date = 1;
             date <= new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -289,11 +309,14 @@
             const index = selectedDates.indexOf(formattedDate);
 
             if (day === weekday) {
-              datesChanged.push(fullDate);
-              if (index === -1) {
-                selectedDates.push(formattedDate);
+              if (anyUnselected) {
+                if (index === -1) {
+                  selectedDates.push(formattedDate);
+                }
               } else {
-                selectedDates.splice(index, 1);
+                if (index > -1) {
+                  selectedDates.splice(index, 1);
+                }
               }
             }
           }
